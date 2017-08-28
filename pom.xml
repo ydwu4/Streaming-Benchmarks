@@ -11,6 +11,7 @@
     <modules>
         <module>flink-benchmarks</module>
         <module>streaming-benchmarks-common</module>
+        <module>spark-benchmarks</module>
     </modules>
 
 
