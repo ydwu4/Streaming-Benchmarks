@@ -2,11 +2,11 @@ package benchmarks.onlinelearning;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-public class OnlineSVMExample {
+public class OnlineLogisticRegressionExample {
     static public void main(String[] args) throws Exception {
-        OnlineSVMModel svm = new OnlineSVMModel(args);
+        OnlineLogisticRegressionModel log = new OnlineLogisticRegressionModel(args);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        svm.modeling(env);
-        env.execute("online svm alpha");
+        log.modeling(env);
+        env.execute("online log reg alpha");
     }
 }

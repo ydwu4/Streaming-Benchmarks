@@ -14,15 +14,16 @@ public class OnlineSVMModel extends OnlineLearningModel {
     @Override
     protected CoFlatMapFunction<LabeledVector, DenseVector, DenseVector> train() {
         return new CoFlatMapFunction<LabeledVector, DenseVector, DenseVector>() {
-            private DenseVector oldParams = new DenseVector(new double[paramSize]);
-            private DenseVector latestParams = new DenseVector(new double[paramSize]);
+            private DenseVector oldParams = newParams();
+            private DenseVector latestParams = newParams();
+            private DenseVector accuGradient = newParams();
             private int updateCnt = 0;
 
             public void flatMap1(LabeledVector v, Collector<DenseVector> coll) throws Exception { // use each sample to train local model
                 // http://www.mit.edu/~rakhlin/6.883/lectures/lecture04.pdf, Algorithm 2, Pegasos
                 double fac = v.label() * latestParams.dot(v.vector());
                 double dec = 1 - learningRate * regularization;
-                for (int i = 0; i < latestParams.size(); i++) {
+                for (int i = 0; i < paramSize; i++) {
                     latestParams.data()[i] *= dec;
                 }
                 if (fac < 1) {
@@ -36,20 +37,23 @@ public class OnlineSVMModel extends OnlineLearningModel {
                 updateCnt += 1;
                 if (updateFreq == updateCnt) { // Can use count based here, not timer based, because we need to ensure coll is legal.
                     updateCnt = 0;
-                    DenseVector grad = new DenseVector(new double[oldParams.size()]);
-                    for (int i = 0; i < grad.size(); i++) {
+                    DenseVector grad = newParams();
+                    for (int i = 0; i < paramSize; i++) {
                         grad.data()[i] = latestParams.data()[i] - oldParams.data()[i];
                     }
                     coll.collect(grad);
+                    for (int i = 0; i < paramSize; i++) {
+                        oldParams.data()[i] += accuGradient.data()[i];
+                        accuGradient.data()[i] = 0;
+                    }
+                    latestParams = oldParams.copy();
                 }
             }
 
             public void flatMap2(DenseVector grad, Collector<DenseVector> coll) throws Exception { // update local params with broadcasted gradient
-                for (int i = 0; i < grad.size(); i++) {
-                    oldParams.update(i, oldParams.data()[i] + grad.data()[i]);
+                for (int i = 0; i < paramSize; i++) {
+                    accuGradient.update(i, accuGradient.data()[i] + grad.data()[i]);
                 }
-                latestParams = oldParams.copy();
-                // doesn't push anything to coll
             }
         };
     }
