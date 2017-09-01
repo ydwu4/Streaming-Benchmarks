@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 
 public class HDFSToKafka {
     public static Map<String, String> parse(String[] args) {
@@ -25,11 +26,16 @@ public class HDFSToKafka {
         return config;
     }
 
+    public static class Record {
+        int numSend = 0;
+        int lastSend = 0;
+    }
+
     public static void main(String[] args) throws Exception {
         Map<String, String> config = parse(args);
 
         String topic = config.get("topic");
-        int sleepTime = Integer.valueOf(config.getOrDefault("sleep.time", "2000"));
+        double sendProb = Double.valueOf(config.getOrDefault("send.probability", "1"));
 
         Properties kafkaConf = new Properties();
         kafkaConf.put("bootstrap.servers", config.get("bootstrap.servers"));
@@ -51,10 +57,26 @@ public class HDFSToKafka {
         BufferedReader reader = new BufferedReader(new InputStreamReader(file), (int) status.getBlockSize());
         ArrayList<String> buffer = new ArrayList<String>();
         for (String line = ""; (line = reader.readLine()) != null; buffer.add(line)) ;
+        Random rand = new Random();
+        // int numSend = 0, lastSend = 0;
+        final Record rec = new Record();
+        new Thread(() -> {
+            while (true) {
+                int curSend = rec.numSend;
+                System.out.println("Throughput (rec/sec): " + (curSend - rec.lastSend));
+                rec.lastSend = curSend;
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception e) {}
+            }
+        }).start();
         while (true) {
             for (String line : buffer) {
-                producer.send(new ProducerRecord<String, String>(topic, line));
-                Thread.sleep(2000);
+                if (rand.nextDouble() < sendProb) {
+                    rec.numSend += 1;
+                    ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, line);
+                    producer.send(record);
+                }
             }
         }
     }

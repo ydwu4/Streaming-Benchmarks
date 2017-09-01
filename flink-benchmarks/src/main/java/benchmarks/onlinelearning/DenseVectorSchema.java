@@ -1,5 +1,6 @@
 package benchmarks.onlinelearning;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.ml.math.DenseVector;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -36,7 +37,7 @@ public class DenseVectorSchema implements DeserializationSchema<DenseVector>, Se
 
     @Override
     public TypeInformation<DenseVector> getProducedType() {
-        return null; // Don't know how to create the return value
+        return BasicTypeInfo.of(DenseVector.class); // Don't know how to create the return value
     }
 
     @Override

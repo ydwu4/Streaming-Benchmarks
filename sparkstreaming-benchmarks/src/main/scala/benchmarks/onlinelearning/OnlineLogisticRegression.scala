@@ -28,11 +28,13 @@ object OnlineLogisticRegression {
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("online logreg alpha")
-    val ssc = new StreamingContext(conf, Seconds(1))
     val config = parse(args.toList, Map.empty)
+    val batchTime = config.getOrElse("batch.time", "1").toInt
+    val ssc = new StreamingContext(conf, Seconds(1))
     val numFeatures = config("feature.num").toInt
     val minL = config("label.min").toInt
     val maxL = config("label.max").toInt
+    val iter = config.getOrElse("iteration.num", "50").toInt
 
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> config("bootstrap.servers"),
@@ -58,7 +60,9 @@ object OnlineLogisticRegression {
         new LabeledPoint(label, Vectors.sparse(numFeatures, tail.map(_._1), tail.map(_._2)))
     }
     
-    val model = new StreamingLogisticRegressionWithSGD().setInitialWeights(Vectors.zeros(numFeatures))
+    val model = new StreamingLogisticRegressionWithSGD()
+        .setInitialWeights(Vectors.zeros(numFeatures))
+        .setNumIterations(iter)
 
     model.trainOn(trainingData)
 

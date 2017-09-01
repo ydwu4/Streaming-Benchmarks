@@ -18,6 +18,7 @@ file:///data/zzxx/jars/spark-streaming-kafka-0-10_2.11-2.2.0.jar
 --class "benchmarks.onlinelearning.OnlineSVM" \
 --jars $jars \
 --conf spark.driver.maxResultSize=10g \
+--conf spark.metrics.conf=/data/opt/spark-2.2.0/conf/metrics.properties \
 --driver-memory 15g \
 --driver-cores 4 \
 --executor-memory 10g \
@@ -29,4 +30,6 @@ topic $topic \
 feature.num $a9 \
 label.min -1 \
 label.max 1 \
+batch.time 1 \
+iteration.num 1 \
 2>&1 | tee -a log.txt
