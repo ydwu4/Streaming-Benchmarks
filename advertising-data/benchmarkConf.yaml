@@ -1,0 +1,54 @@
+# Copyright 2015, Yahoo Inc.
+# Licensed under the terms of the Apache License 2.0. Please see LICENSE file in the project root for terms.
+
+kafka.brokers:
+    - "worker1"
+    - "worker2"
+    - "worker3"
+    - "worker4"
+    - "worker5"
+    - "worker6"
+    - "worker7"
+    - "worker8"
+    - "worker9"
+    - "worker10"
+    - "worker11"
+    - "worker12"
+    - "worker13"
+    - "worker14"
+    - "worker15"
+    - "worker16"
+    - "worker17"
+    - "worker18"
+    - "worker19"
+    - "worker20"
+    - "worker20"
+    - "worker21"
+    - "worker22"
+    - "worker23"
+    - "worker24"
+    - "worker25"
+    - "worker26"
+    - "worker27"
+    - "worker28"
+    - "worker29"
+    - "worker30"
+
+zookeeper.servers:
+    - "master"
+
+redis.host: "worker21"
+kafka.port: 9093
+zookeeper.port: 2182
+kafka.topic: "ad-events"
+kafka.partitions: 128
+
+process.hosts: 1
+process.cores: 4
+
+#STORM Specific
+storm.workers: 1
+storm.ackers: 2
+
+#Spark Specific
+spark.batchtime: 2000
