@@ -1,24 +1,22 @@
-servers=worker1:9093
+brokers="worker1"
 for i in {2..30}; do
-    servers=$servers,worker$i:9093
+    brokers="$brokers,worker$i"
 done
-
-topic=HTK
-
-a9=123
 
 jars=file:///data/zzxx/jars/kafka_2.11-0.11.0.0.jar,\
 file:///data/zzxx/jars/kafka-clients-0.11.0.0.jar,\
-file:///data/zzxx/jars/spark-streaming-kafka-0-10_2.11-2.2.0.jar
-
-# remove topic
-/data/opt/kafka_2.11-0.11.0.0/bin/kafka-topics.sh --zookeeper master:2182 --delete --topic $topic
+file:///data/zzxx/jars/sedis_2.11-1.2.2.jar,\
+file:///data/zzxx/jars/jedis-2.9.0.jar,\
+file:///data/zzxx/jars/commons-pool2-2.4.2.jar,\
+file:///data/zzxx/jars/spark-sql-kafka-0-10_2.11-2.2.0.jar,\
+file:///data/zzxx/jars/json-20170516.jar
 
 # add this for metric configuration system
 # --conf spark.metrics.conf=/data/opt/spark-2.2.0/conf/metrics.properties \
 
 /data/opt/spark-2.2.0/bin/spark-submit \
---class "benchmarks.onlinelearning.OnlineSVM" \
+--class "benchmarks.advertising.AdvertisingSql" \
+--name "AdvertisingSql" \
 --jars $jars \
 --conf spark.driver.maxResultSize=10g \
 --driver-memory 15g \
@@ -27,11 +25,7 @@ file:///data/zzxx/jars/spark-streaming-kafka-0-10_2.11-2.2.0.jar
 --executor-cores 6 \
 --master spark://master:7777 \
 target/scala-2.11/sparkbenchmarks_2.11-1.0.jar \
-bootstrap.servers $servers \
-topic $topic \
-feature.num $a9 \
-label.min -1 \
-label.max 1 \
-batch.time 1 \
-iteration.num 1 \
-2>&1 | tee -a log.txt
+redis.host worker21 \
+kafka.port 9093 \
+kafka.brokers $brokers \
+kafka.topic ad-events
