@@ -15,7 +15,7 @@ producer_topic=$2
 prob=$3
 
 # run program
-sbt "run-main benchmarks.common.ConsoleConsumer --prob $prob --zookeeper master:2182  --consumer_topic $consumer_topic --producer_topic $producer_topic --broker-list $brokers --delete-consumer-offsets"
+sbt "run-main benchmarks.common.KafkaToKafka --prob $prob --zookeeper master:2182  --consumer-topic $consumer_topic --producer-topic $producer_topic --broker-list $brokers --delete-consumer-offsets"
 
 #remove topic
 #/data/opt/kafka_2.11-0.11.0.0/bin/kafka-topics.sh --zookeeper master:2182 --delete --topic $producer_topic
