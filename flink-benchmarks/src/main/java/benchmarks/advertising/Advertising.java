@@ -97,7 +97,7 @@ public class Advertising {
         }
     }
 
-    public static final class RedisJoinBolt extends RichFlatMapFunction<Tuple2<String, String>, Tuple3<String, String, String>> {
+    public static final class RedisJoinBolt extends RichFlatMapFunction<Tuple2<String, String>, Tuple2<String, String>> {
         RedisAdCampaignCache redisAdCampaignCache;
 
         @Override
@@ -112,22 +112,21 @@ public class Advertising {
 
         @Override
         public void flatMap(Tuple2<String, String> input,
-                            Collector<Tuple3<String, String, String>> out) throws Exception {
+                            Collector<Tuple2<String, String>> out) throws Exception {
             String ad_id = input.getField(0);
             String campaign_id = this.redisAdCampaignCache.execute(ad_id);
             if (campaign_id == null) {
                 return;
             }
 
-            Tuple3<String, String, String> tuple = new Tuple3<String, String, String>(
+            Tuple2<String, String> tuple = new Tuple2<String, String>(
                 campaign_id,
-                (String) input.getField(0),
                 (String) input.getField(1));
             out.collect(tuple);
         }
     }
 
-    public static class CampaignProcessor extends RichFlatMapFunction<Tuple3<String, String, String>, String> {
+    public static class CampaignProcessor extends RichFlatMapFunction<Tuple2<String, String>, String> {
         CommonCampaignProcessor campaignProcessor;
 
         @Override
@@ -141,10 +140,10 @@ public class Advertising {
         }
 
         @Override
-        public void flatMap(Tuple3<String, String, String> tuple, Collector<String> out) throws Exception {
+        public void flatMap(Tuple2<String, String> tuple, Collector<String> out) throws Exception {
 
             String campaign_id = tuple.getField(0);
-            String event_time = tuple.getField(2);
+            String event_time = tuple.getField(1);
             this.campaignProcessor.execute(campaign_id, event_time);
         }
     }

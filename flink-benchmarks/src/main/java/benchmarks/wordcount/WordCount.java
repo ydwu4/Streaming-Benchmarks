@@ -20,24 +20,26 @@ public class WordCount {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         ParameterTool parameterTool = ParameterTool.fromArgs(args);
-        DataStream<String> text = env.addSource(new FlinkKafkaConsumer010<String>("transfer", new SimpleStringSchema(), parameterTool.getProperties())).setParallelism(30);
+        String topic = parameterTool.getRequired("topic");
+        DataStream<String> text = env.addSource(new FlinkKafkaConsumer010<String>(topic, new SimpleStringSchema(), parameterTool.getProperties())).setParallelism(30);
 
         DataStream<Tuple2<String, Integer>> counts =
-            // normalize and split each line
-            text.map(line -> line.toLowerCase().split("\\W+"))
-                // convert splitted line in pairs (2-tuples) containing: (word,1)
-                .flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
-                    // emit the pairs with non-zero-length words
-                    Arrays.stream(tokens)
-                        .filter(t -> t.length() > 0)
-                        .forEach(t -> out.collect(new Tuple2<>(t, 1)));
-                })
-                // group by the tuple field "0" and sum up tuple field "1"
-                .keyBy(0)
-                .sum(1);
+                // normalize and split each line
+                text.map(line -> line.toLowerCase().split("\\W+"))
+                        // convert splitted line in pairs (2-tuples) containing: (word,1)
+                        .flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
+                            // emit the pairs with non-zero-length words
+                            Arrays.stream(tokens)
+                                    .filter(t -> t.length() > 0)
+                                    .forEach(t -> out.collect(new Tuple2<>(t, 1)));
+                        })
+                        // group by the tuple field "0" and sum up tuple field "1"
+                        .keyBy(0)
+                        .sum(1);
 
         // emit result
         counts.print();
         env.execute("Apache Flink WordCount");
     }
 }
+
