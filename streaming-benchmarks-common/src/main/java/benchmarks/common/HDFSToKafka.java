@@ -29,6 +29,7 @@ public class HDFSToKafka {
     public static class Record {
         int numSend = 0;
         int lastSend = 0;
+        int times = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -65,6 +66,10 @@ public class HDFSToKafka {
                 int curSend = rec.numSend;
                 System.out.println("Throughput (rec/sec): " + (curSend - rec.lastSend));
                 rec.lastSend = curSend;
+                rec.times += 1;
+                if (rec.times%10 == 0) {
+                    System.out.println("Average (rec/sec): " + (curSend / rec.times));
+                }
                 try {
                     Thread.sleep(1000);
                 } catch (Exception e) {}
@@ -81,3 +86,4 @@ public class HDFSToKafka {
         }
     }
 }
+
