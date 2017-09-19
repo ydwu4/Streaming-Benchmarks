@@ -25,7 +25,7 @@ file:///data/zzxx/jars/spark-streaming-kafka-0-10_2.11-2.2.0.jar
 --driver-cores 4 \
 --executor-memory 10g \
 --executor-cores 6 \
---master spark://master:7777 \
+--master spark://proj99:7777 \
 target/scala-2.11/sparkbenchmarks_2.11-1.0.jar \
 bootstrap.servers $servers \
 topic $topic \
