@@ -23,7 +23,7 @@ file:///data/zzxx/jars/json-20170516.jar
 --driver-cores 4 \
 --executor-memory 10g \
 --executor-cores 6 \
---master spark://master:7777 \
+--master spark://proj99:7777 \
 target/scala-2.11/sparkbenchmarks_2.11-1.0.jar \
 redis.host worker21 \
 kafka.port 9093 \
