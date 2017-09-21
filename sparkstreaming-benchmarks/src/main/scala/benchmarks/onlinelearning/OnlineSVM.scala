@@ -26,11 +26,13 @@ object OnlineSVM {
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("online svm alpha")
-    val ssc = new StreamingContext(conf, Seconds(1))
     val config = parse(args.toList, Map.empty)
+    val batchTime = config.getOrElse("batch.time", "1").toInt
+    val ssc = new StreamingContext(conf, Seconds(batchTime))
     val numFeatures = config("feature.num").toInt
     val minL = config("label.min").toInt
     val maxL = config("label.max").toInt
+    val iter = config.getOrElse("iteration.num", "1").toInt
 
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> config("bootstrap.servers"),
@@ -56,7 +58,9 @@ object OnlineSVM {
         new LabeledPoint(label, Vectors.sparse(numFeatures, tail.map(_._1), tail.map(_._2)))
     }
 
-    val model = new StreamingSVMWithSGD().setInitialWeights(Vectors.zeros(numFeatures))
+    val model = new StreamingSVMWithSGD()
+        .setInitialWeights(Vectors.zeros(numFeatures))
+        .setNumIterations(iter)
 
     model.trainOn(trainingData)
 

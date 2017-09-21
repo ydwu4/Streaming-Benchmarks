@@ -30,11 +30,11 @@ object OnlineLogisticRegression {
     val conf = new SparkConf().setAppName("online logreg alpha")
     val config = parse(args.toList, Map.empty)
     val batchTime = config.getOrElse("batch.time", "1").toInt
-    val ssc = new StreamingContext(conf, Seconds(1))
+    val ssc = new StreamingContext(conf, Seconds(batchTime))
     val numFeatures = config("feature.num").toInt
     val minL = config("label.min").toInt
     val maxL = config("label.max").toInt
-    val iter = config.getOrElse("iteration.num", "50").toInt
+    val iter = config.getOrElse("iteration.num", "1").toInt
 
     val kafkaParams = Map[String, Object](
       "bootstrap.servers" -> config("bootstrap.servers"),

@@ -11,6 +11,10 @@ file:///data/zzxx/jars/commons-pool2-2.4.2.jar,\
 file:///data/zzxx/jars/spark-sql-kafka-0-10_2.11-2.2.0.jar,\
 file:///data/zzxx/jars/json-20170516.jar
 
+user=$(whoami)
+mkdir -p /data/$user/spark-logs/
+LOGFILE=/data/$user/spark-logs/AD-$(date +%s).cilent
+
 # add this for metric configuration system
 # --conf spark.metrics.conf=/data/opt/spark-2.2.0/conf/metrics.properties \
 
@@ -28,4 +32,5 @@ target/scala-2.11/sparkbenchmarks_2.11-1.0.jar \
 redis.host worker21 \
 kafka.port 9093 \
 kafka.brokers $brokers \
-kafka.topic ad-events
+kafka.topic ad-events \
+2>&1 | tee -a $LOGFILE
