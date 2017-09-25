@@ -1,5 +1,7 @@
 package benchmarks.onlinelearning
 
+import java.util.logging.Logger
+
 import org.apache.spark.SparkConf
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -11,6 +13,8 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import scala.annotation.tailrec
 
 object OnlineSVM {
+  private lazy val LOG = Logger.getLogger(OnlineSVM.getClass.getName)
+
   @tailrec
   def parse(args: List[String], config: Map[String, String]): Map[String, String] = {
     args match {
@@ -53,16 +57,25 @@ object OnlineSVM {
     val trainingData = stream.map(_.value()).map {
       line =>
         val sp = line.split("\\s")
-        val tail = sp.tail.map(_.split(":")).map { iv => (iv(0).toInt, iv(1).toDouble) }
-        val label = labelize(sp.head.toInt, minL, maxL)
-        new LabeledPoint(label, Vectors.sparse(numFeatures, tail.map(_._1), tail.map(_._2)))
+        val time = sp.head.toLong
+        val label = labelize(sp.tail.head.toInt, minL, maxL)
+        val tail = sp.tail.tail.map(_.split(":")).map { iv => (iv(0).toInt, iv(1).toDouble) }
+        (time, new LabeledPoint(label, Vectors.sparse(numFeatures, tail.map(_._1), tail.map(_._2))))
     }
 
     val model = new StreamingSVMWithSGD()
         .setInitialWeights(Vectors.zeros(numFeatures))
         .setNumIterations(iter)
 
-    model.trainOn(trainingData)
+    model.trainOn(trainingData.map(_._2))
+
+    trainingData.map(_._1).foreachRDD {
+      (rdd, time) =>
+        val timeMillis = time.milliseconds
+        val numElem = rdd.count()
+        val avgLatency = rdd.map(eventTime => timeMillis - eventTime).sum / numElem.toDouble
+        println(s"Number of elements: $numElem, Latency: $avgLatency, batchTimeStamp: $timeMillis(${new java.util.Date(timeMillis)})")
+    }
 
     ssc.start()
     ssc.awaitTermination()

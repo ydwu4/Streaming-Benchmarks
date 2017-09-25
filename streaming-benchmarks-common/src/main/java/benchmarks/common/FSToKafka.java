@@ -58,6 +58,7 @@ public class FSToKafka {
             for (String line = reader.readLine(); line != null; line = reader.readLine()) {
                 if (rand.nextDouble() < sendProb) {
                     rec.numSend += 1;
+                    line = System.currentTimeMillis() + " " + line;
                     ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, line);
                     producer.send(record);
                 }

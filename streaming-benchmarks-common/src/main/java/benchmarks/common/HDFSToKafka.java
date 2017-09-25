@@ -81,6 +81,7 @@ public class HDFSToKafka {
                     String str = String.valueOf(System.currentTimeMillis());
                     line = str + " " + line;
                     rec.numSend += 1;
+                    line = System.currentTimeMillis() + " " + line;
                     ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, line);
                     producer.send(record);
                 }

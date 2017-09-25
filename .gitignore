@@ -23,5 +23,6 @@ hs_err_pid*
 *target/*
 */target/*
 */project/*
+*/*/target
 
 advertising-data/*.txt

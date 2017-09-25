@@ -5,6 +5,11 @@ done
 
 datapath=~/kddb
 
+if [ ! -f $datapath ]; then
+  echo "Data file not found: $datapath"
+  exit
+fi
+
 topic=HTK
 
 # run program

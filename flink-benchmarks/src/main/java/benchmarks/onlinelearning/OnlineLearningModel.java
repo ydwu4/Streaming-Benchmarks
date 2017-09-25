@@ -1,6 +1,7 @@
 package benchmarks.onlinelearning;
 
-import org.apache.flink.api.common.functions.MapFunction;
+import benchmarks.common.Pair;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.ml.common.LabeledVector;
 import org.apache.flink.ml.math.DenseVector;
@@ -8,9 +9,14 @@ import org.apache.flink.ml.math.SparseVector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
@@ -21,6 +27,8 @@ import java.io.Serializable;
  * >> A: Use kafka. Need to delete the topic each time after running the program.
  */
 public abstract class OnlineLearningModel implements Serializable {
+    private Logger LOG = LoggerFactory.getLogger(OnlineSVMModel.class);
+
     protected ParameterTool parameterTool;
     protected String dataTopic;
     protected int paramSize;
@@ -50,67 +58,97 @@ public abstract class OnlineLearningModel implements Serializable {
     }
 
     public void modeling(StreamExecutionEnvironment env) {
-//        DataStream<DenseVector> gradients = env.addSource(new FlinkKafkaConsumer010<String>( // read gradient source from kafka
-//            gradTopic,
-//            new SimpleStringSchema(),
-//            parameterTool.getProperties()
-//        )).map(new MapFunction<String, DenseVector>() { // parse string text to gradient vector
-//            public DenseVector map(String msg) throws Exception {
-//                String[] splits = msg.split(" ");
-//                double[] values = new double[Integer.valueOf(splits[0])];
-//                for (int i = 0; i < values.length; i++) {
-//                    values[i] = Double.valueOf(splits[i + 1]);
-//                }
-//                return new DenseVector(values);
-//            }
-//        }).broadcast(); // broadcast the gradient to every physical downstream
         DataStream<DenseVector> gradients = env.addSource(new FlinkKafkaConsumer010<DenseVector>(
             gradTopic,
             new DenseVectorSchema(),
             parameterTool.getProperties()
         )).broadcast();
 
-        env.addSource(new FlinkKafkaConsumer010<String>( // source of samples
+        DataStream<Pair<Long, LabeledVector>> input = env.addSource(new FlinkKafkaConsumer010<String>( // source of samples
             dataTopic,
             new SimpleStringSchema(),
             parameterTool.getProperties()
         )).filter(s -> !s.isEmpty()).map(
             s -> {
-                // format of s: label idx1:val1 idx2:val2 idx3:val3 ...
+                // format of s: timestamp sample
+                // format of sample: label idx1:val1 idx2:val2 idx3:val3 ...
                 String[] splits = s.split("\\s");
-                double label = formalize(Integer.valueOf(splits[0]));
+                long time = Integer.valueOf(splits[0]);
+                double label = formalize(Integer.valueOf(splits[1]));
+
                 int[] indices = new int[splits.length - 1];
                 double[] values = new double[splits.length - 1];
-                for (int i = 1; i < splits.length; i++) {
+                for (int i = 2; i < splits.length; i++) {
                     String[] iv = splits[i].split(":");
-                    indices[i - 1] = Integer.valueOf(iv[0]);
-                    values[i - 1] = Double.valueOf(iv[1]);
+                    indices[i - 2] = Integer.valueOf(iv[0]);
+                    values[i - 2] = Double.valueOf(iv[1]);
                 }
-                return new LabeledVector(label, new SparseVector(paramSize, indices, values));
+                return new Pair<>(time, new LabeledVector(label, new SparseVector(paramSize, indices, values)));
             }
-        ).connect(gradients).flatMap(train()).addSink(new FlinkKafkaProducer010<DenseVector>(
+        );
+
+        input.map(Pair::second).connect(gradients).flatMap(train()).addSink(new FlinkKafkaProducer010<DenseVector>(
             gradTopic,
             new DenseVectorSchema(),
             parameterTool.getProperties()
         ));
-//        }).connect(gradients).flatMap(train()).map(new MapFunction<DenseVector, String>() { // parse gradient to string text
-//            public String map(DenseVector value) throws Exception {
-//                StringBuilder builder = new StringBuilder();
-//                builder.append(value.size());
-//                for (int i = 0; i < value.size(); i++) {
-//                    builder.append(' ');
-//                    builder.append(value.data()[i]);
-//                }
-//                return builder.toString();
-//            }
-//        }).addSink(new FlinkKafkaProducer010<String>( // send gradient to gradient source
-//            gradTopic,
-//            new SimpleStringSchema(),
-//            parameterTool.getProperties()
-//        ));
+
+        int metricInterval = parameterTool.getInt("metric.interval", 1);
+        input.map(Pair::first)
+            .map(tm -> System.currentTimeMillis() - tm)
+            .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(metricInterval)))
+            .aggregate(new AggregateFunction<Long, LatencyThroughputAccumulator, Pair>() {
+                @Override
+                public LatencyThroughputAccumulator createAccumulator() {
+                    return new LatencyThroughputAccumulator(metricInterval);
+                }
+
+                @Override
+                public void add(Long value, LatencyThroughputAccumulator accumulator) {
+                    accumulator.add(value);
+                }
+
+                @Override
+                public Pair getResult(LatencyThroughputAccumulator accumulator) {
+                    return accumulator.getResult();
+                }
+
+                @Override
+                public LatencyThroughputAccumulator merge(LatencyThroughputAccumulator a, LatencyThroughputAccumulator b) {
+                    return LatencyThroughputAccumulator.merge(a, b);
+                }
+            }).addSink((SinkFunction<Pair>) value -> {
+            LOG.info("Latency: {} ms, Throughput: {} rec/sec", value.first(), value.second());
+        });
     }
 
     protected DenseVector newParams() {
         return new DenseVector(new double[paramSize]);
+    }
+}
+
+class LatencyThroughputAccumulator {
+    private long count = 0;
+    private long sum = 0;
+    private double interval;
+
+    public LatencyThroughputAccumulator(double interval) {
+        this.interval = interval;
+    }
+
+    public void add(Long latency) {
+        sum += latency;
+        count += 1;
+    }
+
+    public Pair getResult() {
+        return new Pair<>((sum + 0.) / count, count / interval);
+    }
+
+    static public LatencyThroughputAccumulator merge(LatencyThroughputAccumulator a, LatencyThroughputAccumulator b) {
+        LatencyThroughputAccumulator acc = new LatencyThroughputAccumulator(a.interval);
+        acc.count = a.count + b.count;
+        acc.sum = a.sum + b.sum;
+        return acc;
     }
 }
