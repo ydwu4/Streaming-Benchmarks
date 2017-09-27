@@ -78,6 +78,8 @@ public class HDFSToKafka {
         while (true) {
             for (String line : buffer) {
                 if (rand.nextDouble() < sendProb) {
+                    String str = String.valueOf(System.currentTimeMillis());
+                    line = str + " " + line;
                     rec.numSend += 1;
                     ProducerRecord<String, String> record = new ProducerRecord<String, String>(topic, line);
                     producer.send(record);
@@ -86,4 +88,3 @@ public class HDFSToKafka {
         }
     }
 }
-

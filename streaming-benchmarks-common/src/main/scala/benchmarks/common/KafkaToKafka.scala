@@ -64,6 +64,7 @@ object KafkaToKafka extends Logging {
         while (true) {
           val msg: BaseConsumerRecord = try {
             consumer.receive()
+
           } catch {
             case _: StreamEndException =>
               trace("Caught StreamEndException because consumer is shutdown, ignore and terminate.")
@@ -80,7 +81,12 @@ object KafkaToKafka extends Logging {
           }
           recCurCount += 1
           if (rand.nextDouble() <= prob) {
-            msgQ.put(msg)
+            val str = s"${System.currentTimeMillis()} ${new String(msg.value, "UTF-8")}"
+            if (recCurCount%1000000 == 0) {
+                println(s"Msg: $str")
+            }
+            val newMsg = BaseConsumerRecord(msg.topic, msg.partition, msg.offset, msg.timestamp, msg.timestampType, msg.key, str.getBytes("UTF-8"), msg.headers)
+            msgQ.put(newMsg)
           }
         }
       }
