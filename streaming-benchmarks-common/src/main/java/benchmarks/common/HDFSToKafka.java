@@ -32,11 +32,23 @@ public class HDFSToKafka {
         int times = 1;
     }
 
+    public static class ProbPlan {
+        double[] sendProbPlan; 
+        double sendProb = 1.;
+        int min = 0;
+    }
+
     public static void main(String[] args) throws Exception {
         Map<String, String> config = parse(args);
 
         String topic = config.get("topic");
-        double sendProb = Double.valueOf(config.getOrDefault("send.probability", "1"));
+        final ProbPlan plan = new ProbPlan();
+        String plan_str = config.getOrDefault("send.probability", "1");
+        String[] items = plan_str.split("\\s*,\\s*"); 
+        plan.sendProbPlan = new double[items.length];
+        for (int i=0; i<items.length; i++) {
+            plan.sendProbPlan[i] = Double.valueOf(items[i]);
+        }
 
         Properties kafkaConf = new Properties();
         kafkaConf.put("bootstrap.servers", config.get("bootstrap.servers"));
@@ -75,9 +87,23 @@ public class HDFSToKafka {
                 } catch (Exception e) {}
             }
         }).start();
+
+        // vary the sendProb according to a fixed plan
+        new Thread(() -> {
+            while (true) {
+                // no need to lock
+                plan.sendProb = plan.sendProbPlan[plan.min % plan.sendProbPlan.length];
+                plan.min++;
+                System.out.println("time:" + plan.min + " sendProb now is: " + plan.sendProb);
+                try {
+                    Thread.sleep(1000 * 60);
+                } catch (Exception e) {}
+            }
+        }).start();
+
         while (true) {
             for (String line : buffer) {
-                if (rand.nextDouble() < sendProb) {
+                if (rand.nextDouble() < plan.sendProb) {
                     String str = String.valueOf(System.currentTimeMillis());
                     line = str + " " + line;
                     rec.numSend += 1;

@@ -26,6 +26,7 @@ LOGFILE=/data/$user/spark-logs/OLLR-$(date +%s).cilent
 --class "benchmarks.onlinelearning.OnlineLogisticRegression" \
 --jars $jars \
 --conf spark.driver.maxResultSize=10g \
+--conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
 --driver-memory 15g \
 --driver-cores 4 \
 --executor-memory 10g \

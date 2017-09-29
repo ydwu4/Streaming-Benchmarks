@@ -45,6 +45,7 @@ object OnlineLogisticRegression {
       "key.deserializer" -> classOf[StringDeserializer],
       "value.deserializer" -> classOf[StringDeserializer],
       "group.id" -> config.getOrElse("group.id", "spark-logreg"),
+      "client.id" -> "lr-client",
       "auto.offset.reset" -> "latest",
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )

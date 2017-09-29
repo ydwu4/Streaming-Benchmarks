@@ -10,6 +10,7 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>flink-benchmarks</module>
+        <module>storm-benchmarks</module>
         <module>streaming-benchmarks-common</module>
     </modules>
 </project>
